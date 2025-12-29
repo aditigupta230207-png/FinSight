@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Transaction, HistoryItem, AnalysisResult } from '../types';
-import { Upload, CheckCircle, Loader2, RefreshCw, FileText, Image as ImageIcon, Table, PieChart, Repeat, ShoppingBag } from 'lucide-react';
+import { Upload, CheckCircle, Loader2, RefreshCw, FileText, Image as ImageIcon, Table, PieChart, Repeat, ShoppingBag, ArrowRightLeft } from 'lucide-react';
 import { analyzeBankStatement } from '../services/geminiService';
 import { read, utils } from 'xlsx';
 
@@ -171,16 +171,24 @@ export const Dashboard: React.FC<DashboardProps> = ({ transactions }) => {
             </div>
             
             {/* Top Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               <div className="p-6 bg-[#111] rounded-2xl border border-white/5 relative overflow-hidden group hover:border-brand-500/30 transition-colors">
                   <div className="absolute inset-0 bg-brand-500/5 group-hover:bg-brand-500/10 transition-colors"></div>
-                  <p className="text-xs text-brand-400 font-semibold uppercase tracking-widest mb-2 relative z-10">Total Income</p>
+                  <p className="text-xs text-brand-400 font-semibold uppercase tracking-widest mb-2 relative z-10">Net Income</p>
                   <p className="text-3xl font-semibold text-white relative z-10">+₹{analysisResult.totalIncome.toLocaleString('en-IN')}</p>
               </div>
               <div className="p-6 bg-[#111] rounded-2xl border border-white/5 relative overflow-hidden group hover:border-rose-500/30 transition-colors">
                   <div className="absolute inset-0 bg-rose-500/5 group-hover:bg-rose-500/10 transition-colors"></div>
-                  <p className="text-xs text-rose-400 font-semibold uppercase tracking-widest mb-2 relative z-10">Total Expenses</p>
+                  <p className="text-xs text-rose-400 font-semibold uppercase tracking-widest mb-2 relative z-10">Net Expenses</p>
                   <p className="text-3xl font-semibold text-white relative z-10">-₹{analysisResult.totalExpense.toLocaleString('en-IN')}</p>
+              </div>
+              <div className="p-6 bg-[#111] rounded-2xl border border-white/5 relative overflow-hidden group hover:border-blue-500/30 transition-colors">
+                  <div className="absolute inset-0 bg-blue-500/5 group-hover:bg-blue-500/10 transition-colors"></div>
+                  <p className="text-xs text-blue-400 font-semibold uppercase tracking-widest mb-2 relative z-10 flex items-center gap-1">
+                      <ArrowRightLeft className="w-3 h-3" /> Excluded Transfers
+                  </p>
+                  <p className="text-3xl font-semibold text-slate-300 relative z-10">₹{(analysisResult.excludedInternalTransfers || 0).toLocaleString('en-IN')}</p>
+                  <p className="text-[10px] text-slate-500 mt-2">Self-transfers & credit card payments filtered out.</p>
               </div>
             </div>
             

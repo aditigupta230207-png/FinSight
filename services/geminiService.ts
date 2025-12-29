@@ -34,11 +34,12 @@ const cleanAndParseJSON = (text: string | undefined): any => {
     // Attempt to handle common JSON issues
     try {
       // Fix unescaped newlines within strings (basic attempt)
-      // This regex looks for newlines that are likely inside value strings
       const fixed = cleaned.replace(/([^\\])\n/g, '$1\\n');
       return JSON.parse(fixed);
     } catch (e2) {
       console.error("JSON parsing failed. Raw text length:", text.length);
+      // Log the end of the string to see if it was truncated
+      console.error("End of string snippet:", cleaned.slice(-100));
       throw e;
     }
   }
@@ -119,13 +120,14 @@ export const analyzeBankStatement = async (data: string, mimeType: string): Prom
       : { inlineData: { mimeType, data } }; // data is base64 string here
 
     const prompt = `Analyze this bank statement. 
-    1. Extract the total income (sum of all deposits/credits).
-    2. Extract the total expenditure (sum of all withdrawals/debits).
-    3. Provide a very brief summary (max 20 words) of the account activity.
-    4. Classify all expenses into detailed categories.
+    1. Identify "Internal Transfers" (transfers between own accounts, credit card bill payments, self-transfers). Calculate the total amount of these internal transfers.
+    2. Extract the NET total income (sum of all deposits/credits MINUS internal transfers).
+    3. Extract the NET total expenditure (sum of all withdrawals/debits MINUS internal transfers).
+    4. Provide a very brief summary (max 20 words) of the account activity.
+    5. Classify all expenses (excluding internal transfers) into detailed categories.
        - IMPORTANT: Group expenses by category (e.g., Food, Travel). Do NOT list every single transaction separately. Sum them up per category.
        - For each category, provide a list of major vendors.
-    5. Identify repetitive/recurring transactions (same merchant appearing multiple times). List them sorted by total amount paid (highest to lowest).`;
+    6. Identify repetitive/recurring transactions (same merchant appearing multiple times). List them sorted by total amount paid (highest to lowest).`;
 
     const response = await ai.models.generateContent({
       model: MODEL_FAST,
@@ -142,6 +144,7 @@ export const analyzeBankStatement = async (data: string, mimeType: string): Prom
           properties: {
             totalIncome: { type: Type.NUMBER },
             totalExpense: { type: Type.NUMBER },
+            excludedInternalTransfers: { type: Type.NUMBER },
             summary: { type: Type.STRING },
             breakdown: {
               type: Type.ARRAY,
@@ -200,26 +203,52 @@ export const analyzeTaxDocument = async (data: string, mimeType: string): Promis
     const prompt = `Analyze this financial document specifically for detailed Indian Income Tax Return (ITR) preparation.
     
     Classify financial flows with high precision.
-    IMPORTANT: Consolidate data to avoid exceeding output limits. Do NOT list every individual transaction.
+    
+    CRITICAL OUTPUT INSTRUCTIONS:
+    1. Output strictly valid JSON. 
+    2. LIMIT ARRAY SIZES to prevent truncation:
+       - 'recurringSources': Top 10 items max.
+       - 'flaggedCredits': Top 5 items max.
+       - 'deductibleBreakdown': Top 15 categories max (group small ones into 'Other').
+       - 'scrutinyRisks': Top 5 items max.
+    3. Escape all double quotes within strings properly.
+
+    0. **Turnover Validation (Critical)**:
+       - Identify "Internal Transfers" (Contra entries, Self-transfers, Credit Card payments, transfers between own bank accounts).
+       - EXCLUDE these from "Total Gross Income" to prevent inflated turnover figures.
+       - Calculate the total excluded amount.
 
     1. **Income Analysis**:
-       - **Total Gross Income**: Sum of all inflows.
-       - **Classification**: Breakdown into 'Salary', 'Business/Professional', 'Interest', 'Dividend', and 'Other'.
-       - **Recurring Sources**: Identify MAIN clients/sources that pay regularly.
-       - **Flagged Credits**: Identify ONLY high-value or unusual credits (> ₹50,000) that might attract tax scrutiny.
+       - **Total Gross Income**: Sum of all inflows MINUS internal transfers.
+       - **Classification**: Breakdown into:
+          - 'Salary'
+          - 'Business Income' (Sales, Trading, Manufacturing)
+          - 'Professional Fees' (Consulting, Service Fees, Freelancing)
+          - 'Interest' (Savings Bank, FD, RD)
+          - 'Dividend'
+          - 'Capital Gains' (Sale of assets/stocks)
+          - 'Other'
+       - **Recurring Sources**: Identify MAIN clients/sources that pay regularly (Max 10).
+       - **Flagged Credits**: Identify ONLY high-value or unusual credits (> ₹50,000) that might attract tax scrutiny (Max 5).
 
     2. **Expense Analysis**:
        - **Deductible vs Non-Deductible**: 
          - **Deductible**: Business-related expenses allowed under Section 37.
          - **Non-Deductible**: Personal expenses.
-         - **Deductible Breakdown**: Aggregate expenses by CATEGORY (e.g., 'Travel', 'Software', 'Rent'). Do not list individual line items.
-       - **Scrutiny Risks**: Flag specific expenses that are business-claimed but risky (e.g., "Cash withdrawals", "Personal luxury items").
+         - **Deductible Breakdown**: Aggregate expenses by CATEGORY (Max 15).
+       - **Scrutiny Risks**: Flag specific expenses that are business-claimed but risky (e.g., "Cash withdrawals", "Personal luxury items") (Max 5).
+    
+    3. **Financial Ratios**:
+       - Calculate **Return on Sales (ROS)** percentage (Operating Profit / Net Sales).
+       - Calculate **EBITDA Margin** percentage (Earnings Before Interest, Taxes, Depreciation, and Amortization / Net Sales).
+       - Calculate **Net Profit Margin** percentage (Net Profit / Net Sales).
+       - Return values as numbers (e.g., 15.5 for 15.5%). If data is insufficient, estimate based on available flows or return 0.
 
-    3. **ITR Context**:
+    4. **ITR Context**:
        - Suggest ITR Form (ITR-1, ITR-3, ITR-4).
        - Detect relevant sections (44ADA, 80C, etc.).
 
-    4. **AI Insight**:
+    5. **AI Insight**:
        - Provide a strategic insight title, description, and potential tax savings amount.
     `;
 
@@ -230,7 +259,7 @@ export const analyzeTaxDocument = async (data: string, mimeType: string): Promis
       },
       config: {
         // Increase token limit to prevent JSON truncation on large files
-        maxOutputTokens: 20000,
+        maxOutputTokens: 25000,
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
@@ -239,13 +268,16 @@ export const analyzeTaxDocument = async (data: string, mimeType: string): Promis
               type: Type.OBJECT,
               properties: {
                 totalGross: { type: Type.NUMBER },
+                excludedInternalTransfers: { type: Type.NUMBER },
                 breakdown: {
                   type: Type.OBJECT,
                   properties: {
                     salary: { type: Type.NUMBER },
                     business: { type: Type.NUMBER },
+                    professional: { type: Type.NUMBER },
                     interest: { type: Type.NUMBER },
                     dividend: { type: Type.NUMBER },
+                    capitalGains: { type: Type.NUMBER },
                     other: { type: Type.NUMBER }
                   }
                 },
@@ -301,6 +333,14 @@ export const analyzeTaxDocument = async (data: string, mimeType: string): Promis
                 }
               }
             },
+            financialRatios: {
+              type: Type.OBJECT,
+              properties: {
+                ros: { type: Type.NUMBER },
+                ebitdaMargin: { type: Type.NUMBER },
+                netProfitMargin: { type: Type.NUMBER }
+              }
+            },
             itrContext: {
               type: Type.OBJECT,
               properties: {
@@ -328,7 +368,7 @@ export const analyzeTaxDocument = async (data: string, mimeType: string): Promis
     return {
       income: { 
         totalGross: 0,
-        breakdown: { salary: 0, business: 0, interest: 0, dividend: 0, other: 0 },
+        breakdown: { salary: 0, business: 0, professional: 0, interest: 0, dividend: 0, capitalGains: 0, other: 0 },
         recurringSources: [],
         flaggedCredits: []
       },
@@ -338,6 +378,7 @@ export const analyzeTaxDocument = async (data: string, mimeType: string): Promis
         deductibleBreakdown: [],
         scrutinyRisks: [] 
       },
+      financialRatios: undefined,
       itrContext: { suggestedForm: "N/A", detectedSections: [], notes: "Analysis failed." },
       aiInsight: { title: "Error", description: "Could not analyze document. Please try a clearer or smaller file.", potentialSavings: "₹0" }
     };

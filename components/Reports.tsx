@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Transaction, TaxAnalysisResult, UserTier } from '../types';
 import { analyzeTaxDocument } from '../services/geminiService';
-import { RefreshCw, Upload, Briefcase, User, IndianRupee, FileText, Sparkles, Brain, Lock, Check, AlertTriangle, TrendingUp, TrendingDown, ShieldAlert } from 'lucide-react';
+import { RefreshCw, Upload, Briefcase, User, IndianRupee, FileText, Sparkles, Brain, Lock, Check, AlertTriangle, TrendingUp, TrendingDown, ShieldAlert, ArrowRightLeft, Percent, Activity, BarChart3 } from 'lucide-react';
 
 interface ReportsProps {
   transactions: Transaction[];
@@ -136,7 +136,7 @@ export const Reports: React.FC<ReportsProps> = ({ transactions, userTier, onUpgr
                 <div className="bg-[#111] p-6 rounded-2xl border border-white/5 relative overflow-hidden group">
                     <div className="absolute top-0 right-0 w-32 h-32 bg-brand-500/5 rounded-full blur-3xl"></div>
                     <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-2">
-                        <TrendingUp className="w-4 h-4 text-brand-500" /> Total Gross Income
+                        <TrendingUp className="w-4 h-4 text-brand-500" /> Gross Income (Net of Transfers)
                     </h4>
                     <p className="text-3xl font-bold text-white">₹{taxAnalysis.income.totalGross.toLocaleString('en-IN')}</p>
                 </div>
@@ -158,6 +158,62 @@ export const Reports: React.FC<ReportsProps> = ({ transactions, userTier, onUpgr
                 </div>
             </div>
 
+            {/* Financial Ratios Row */}
+            {taxAnalysis.financialRatios && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                     <div className="bg-[#111] p-6 rounded-2xl border border-white/5 flex flex-col justify-between relative overflow-hidden group hover:border-emerald-500/20 transition-all">
+                         <div className="absolute right-0 top-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+                            <Percent className="w-16 h-16 text-emerald-500" />
+                         </div>
+                         <div className="mb-4">
+                            <p className="text-xs text-slate-500 uppercase font-bold tracking-widest mb-1 flex items-center gap-2">
+                                <Activity className="w-3 h-3" /> Return on Sales (ROS)
+                            </p>
+                            <div className="flex items-baseline gap-1">
+                                <span className="text-3xl font-bold text-white">{taxAnalysis.financialRatios.ros}%</span>
+                            </div>
+                         </div>
+                         <div className="w-full bg-white/5 h-1.5 rounded-full overflow-hidden">
+                            <div className="bg-emerald-500 h-full rounded-full transition-all duration-1000" style={{ width: `${Math.min(taxAnalysis.financialRatios.ros, 100)}%` }}></div>
+                         </div>
+                    </div>
+
+                    <div className="bg-[#111] p-6 rounded-2xl border border-white/5 flex flex-col justify-between relative overflow-hidden group hover:border-blue-500/20 transition-all">
+                         <div className="absolute right-0 top-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+                            <BarChart3 className="w-16 h-16 text-blue-500" />
+                         </div>
+                         <div className="mb-4">
+                            <p className="text-xs text-slate-500 uppercase font-bold tracking-widest mb-1 flex items-center gap-2">
+                                <Sparkles className="w-3 h-3" /> EBITDA Margin
+                            </p>
+                            <div className="flex items-baseline gap-1">
+                                <span className="text-3xl font-bold text-white">{taxAnalysis.financialRatios.ebitdaMargin}%</span>
+                            </div>
+                         </div>
+                         <div className="w-full bg-white/5 h-1.5 rounded-full overflow-hidden">
+                            <div className="bg-blue-500 h-full rounded-full transition-all duration-1000" style={{ width: `${Math.min(taxAnalysis.financialRatios.ebitdaMargin, 100)}%` }}></div>
+                         </div>
+                    </div>
+
+                     <div className="bg-[#111] p-6 rounded-2xl border border-white/5 flex flex-col justify-between relative overflow-hidden group hover:border-indigo-500/20 transition-all">
+                         <div className="absolute right-0 top-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+                            <Brain className="w-16 h-16 text-indigo-500" />
+                         </div>
+                         <div className="mb-4">
+                            <p className="text-xs text-slate-500 uppercase font-bold tracking-widest mb-1 flex items-center gap-2">
+                                <TrendingUp className="w-3 h-3" /> Net Profit Margin
+                            </p>
+                            <div className="flex items-baseline gap-1">
+                                <span className="text-3xl font-bold text-white">{taxAnalysis.financialRatios.netProfitMargin}%</span>
+                            </div>
+                         </div>
+                         <div className="w-full bg-white/5 h-1.5 rounded-full overflow-hidden">
+                            <div className="bg-indigo-500 h-full rounded-full transition-all duration-1000" style={{ width: `${Math.min(taxAnalysis.financialRatios.netProfitMargin, 100)}%` }}></div>
+                         </div>
+                    </div>
+                </div>
+            )}
+
            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               
               {/* Left Column: Income & Recurring */}
@@ -169,12 +225,16 @@ export const Reports: React.FC<ReportsProps> = ({ transactions, userTier, onUpgr
                     </h4>
                     <div className="space-y-4">
                         <div className="flex justify-between items-center p-3 bg-white/5 rounded-lg">
-                            <span className="text-sm text-slate-300">Business / Profession</span>
-                            <span className="font-semibold text-white">₹{taxAnalysis.income.breakdown.business.toLocaleString('en-IN')}</span>
-                        </div>
-                        <div className="flex justify-between items-center p-3 bg-white/5 rounded-lg">
                             <span className="text-sm text-slate-300">Salary</span>
                             <span className="font-semibold text-white">₹{taxAnalysis.income.breakdown.salary.toLocaleString('en-IN')}</span>
+                        </div>
+                        <div className="flex justify-between items-center p-3 bg-white/5 rounded-lg">
+                            <span className="text-sm text-slate-300">Business Income</span>
+                            <span className="font-semibold text-white">₹{taxAnalysis.income.breakdown.business.toLocaleString('en-IN')}</span>
+                        </div>
+                        <div className="flex justify-between items-center p-3 bg-white/5 rounded-lg border border-brand-500/20">
+                            <span className="text-sm text-slate-300">Professional Fees</span>
+                            <span className="font-semibold text-brand-400">₹{(taxAnalysis.income.breakdown.professional || 0).toLocaleString('en-IN')}</span>
                         </div>
                          <div className="flex justify-between items-center p-3 bg-white/5 rounded-lg">
                             <span className="text-sm text-slate-300">Interest Income</span>
@@ -184,10 +244,23 @@ export const Reports: React.FC<ReportsProps> = ({ transactions, userTier, onUpgr
                             <span className="text-sm text-slate-300">Dividend</span>
                             <span className="font-semibold text-white">₹{taxAnalysis.income.breakdown.dividend.toLocaleString('en-IN')}</span>
                         </div>
+                        <div className="flex justify-between items-center p-3 bg-white/5 rounded-lg">
+                            <span className="text-sm text-slate-300">Capital Gains</span>
+                            <span className="font-semibold text-white">₹{(taxAnalysis.income.breakdown.capitalGains || 0).toLocaleString('en-IN')}</span>
+                        </div>
                          <div className="flex justify-between items-center p-3 bg-white/5 rounded-lg">
                             <span className="text-sm text-slate-300">Other Sources</span>
                             <span className="font-semibold text-white">₹{taxAnalysis.income.breakdown.other.toLocaleString('en-IN')}</span>
                         </div>
+                        {/* Excluded Section */}
+                        {(taxAnalysis.income.excludedInternalTransfers || 0) > 0 && (
+                            <div className="flex justify-between items-center p-3 bg-slate-800/20 rounded-lg mt-4 border border-slate-700/30 border-dashed">
+                                <span className="text-xs text-slate-500 uppercase font-bold tracking-wider flex items-center gap-2">
+                                    <ArrowRightLeft className="w-3 h-3" /> Excluded Internal Transfers
+                                </span>
+                                <span className="font-mono text-slate-400">₹{(taxAnalysis.income.excludedInternalTransfers || 0).toLocaleString('en-IN')}</span>
+                            </div>
+                        )}
                     </div>
                   </div>
 

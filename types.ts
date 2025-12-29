@@ -72,6 +72,7 @@ export interface RecurringTransaction {
 export interface AnalysisResult {
   totalIncome: number;
   totalExpense: number;
+  excludedInternalTransfers?: number;
   summary: string;
   breakdown: CategoryBreakdown[];
   recurring?: RecurringTransaction[];
@@ -88,11 +89,14 @@ export interface HistoryItem {
 export interface TaxAnalysisResult {
   income: {
     totalGross: number;
+    excludedInternalTransfers?: number;
     breakdown: {
       salary: number;
       business: number;
+      professional: number;
       interest: number;
       dividend: number;
+      capitalGains: number;
       other: number;
     };
     recurringSources: { 
@@ -115,6 +119,11 @@ export interface TaxAnalysisResult {
       amount: number; 
       riskReason: string;
     }[];
+  };
+  financialRatios?: {
+    ros: number;
+    ebitdaMargin: number;
+    netProfitMargin: number;
   };
   itrContext: {
     suggestedForm: string;
