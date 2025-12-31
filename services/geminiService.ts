@@ -1,8 +1,12 @@
+console.log("ENV CHECK:", import.meta.env);
+console.log("Gemini Key:", import.meta.env.VITE_GEMINI_API_KEY);
+
 import { GoogleGenAI, Type } from "@google/genai";
 import { Transaction, AnalysisResult, TaxAnalysisResult } from "../types";
 
 // Initialize the API client
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY
+ });
 
 // Using Flash for speed on dashboard tasks
 const MODEL_FAST = "gemini-3-flash-preview"; 
